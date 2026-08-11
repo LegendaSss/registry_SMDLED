@@ -592,7 +592,7 @@
       if (errorDiv) {
         errorDiv.innerHTML = '<strong>Пожалуйста, исправьте следующие ошибки:</strong><br>' + errors.join('<br>');
         errorDiv.style.display = 'block';
-        $('#project-modal .modal-body').scrollTo({ top: 0, behavior: 'smooth' });
+        $('#project-modal .modal-card').scrollTo({ top: 0, behavior: 'smooth' });
       } else {
         showToast(errors.join('\n'), 'error');
       }
