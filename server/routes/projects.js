@@ -29,7 +29,6 @@ function generateUUID() {
   return crypto.randomUUID();
 }
 
-// Вспомогательная функция для удаления файла с диска
 function deleteFileSafely(filename) {
   if (!filename) return;
   const filePath = path.join(__dirname, '..', 'uploads', filename);
@@ -40,12 +39,30 @@ function deleteFileSafely(filename) {
   });
 }
 
+function logAudit(projectId, userEmail, action, details) {
+  const id = generateUUID();
+  const timestamp = new Date().toISOString();
+  db.run(
+    `INSERT INTO audit_logs (id, projectId, userEmail, action, details, timestamp) VALUES (?, ?, ?, ?, ?, ?)`,
+    [id, projectId, userEmail, action, details, timestamp],
+    (err) => { if (err) console.error('Ошибка записи аудита:', err); }
+  );
+}
+
+// Получить историю проекта (Только директор)
+router.get('/:id/audit', authenticateToken, requireDirector, (req, res) => {
+  const { id } = req.params;
+  db.all(`SELECT * FROM audit_logs WHERE projectId = ? ORDER BY timestamp DESC`, [id], (err, rows) => {
+    if (err) return res.status(500).json({ error: 'Ошибка БД' });
+    res.json(rows);
+  });
+});
+
 // Получить все активные проекты (isDeleted = 0)
 router.get('/', authenticateToken, (req, res) => {
   db.all(`SELECT * FROM projects WHERE isDeleted = 0 ORDER BY createdAt DESC`, [], (err, rows) => {
     if (err) return res.status(500).json({ error: 'Ошибка базы данных' });
 
-    // Очистка финансовых данных для тех, у кого нет прав
     const user = req.user;
     const canView = user.canViewFinances || user.role === 'director';
     
@@ -87,6 +104,8 @@ router.post('/', authenticateToken, requireEditRights, upload.fields([{ name: 'c
     parseFloat(p.actualMarginRub) || 0, parseFloat(p.actualMarginPct) || 0, parseFloat(p.marginDiff) || 0, new Date().toISOString(), req.user.email
   ], function (err) {
     if (err) return res.status(500).json({ error: 'Ошибка при создании проекта' });
+    
+    logAudit(id, req.user.email, 'СОЗДАН', 'Проект успешно создан');
     res.status(201).json({ id, message: 'Проект успешно создан' });
   });
 });
@@ -96,20 +115,19 @@ router.put('/:id', authenticateToken, requireEditRights, upload.fields([{ name: 
   const { id } = req.params;
   const p = req.body;
 
-  // Получаем текущие данные проекта, чтобы узнать старые имена файлов
-  db.get(`SELECT contractFileName, signedContractFileName FROM projects WHERE id = ?`, [id], (err, row) => {
+  db.get(`SELECT * FROM projects WHERE id = ?`, [id], (err, row) => {
     if (err || !row) return res.status(500).json({ error: 'Проект не найден' });
 
-    let contractFileName = p.contractFileName; // Приходит с фронтенда если не менялся
+    let contractFileName = p.contractFileName;
     if (req.files['contractFile']) {
       contractFileName = req.files['contractFile'][0].filename;
-      deleteFileSafely(row.contractFileName); // Удаляем старый файл
+      deleteFileSafely(row.contractFileName);
     }
 
     let signedContractFileName = p.signedContractFileName;
     if (req.files['signedContractFile']) {
       signedContractFileName = req.files['signedContractFile'][0].filename;
-      deleteFileSafely(row.signedContractFileName); // Удаляем старый файл
+      deleteFileSafely(row.signedContractFileName);
     }
 
     db.run(`UPDATE projects SET
@@ -125,6 +143,18 @@ router.put('/:id', authenticateToken, requireEditRights, upload.fields([{ name: 
       parseFloat(p.actualMarginRub) || 0, parseFloat(p.actualMarginPct) || 0, parseFloat(p.marginDiff) || 0, id
     ], function (err) {
       if (err) return res.status(500).json({ error: 'Ошибка при обновлении проекта' });
+
+      // Подготовка деталей аудита
+      const changes = [];
+      if (row.revenue !== (parseFloat(p.revenue) || 0)) changes.push(`Выручка: ${row.revenue} -> ${p.revenue}`);
+      if (row.projectStatus !== p.projectStatus) changes.push(`Статус: ${p.projectStatus}`);
+      if (row.paymentStatus !== p.paymentStatus) changes.push(`Оплата: ${p.paymentStatus}`);
+      if (req.files['contractFile']) changes.push(`Загружен новый Договор`);
+      if (req.files['signedContractFile']) changes.push(`Загружен подписанный Договор`);
+      
+      const details = changes.length > 0 ? changes.join(', ') : 'Обновлены текстовые поля';
+      logAudit(id, req.user.email, 'ИЗМЕНЕН', details);
+
       res.json({ success: true, message: 'Проект обновлен' });
     });
   });
@@ -136,6 +166,8 @@ router.delete('/:id', authenticateToken, requireDirector, (req, res) => {
   
   db.run(`UPDATE projects SET isDeleted = 1 WHERE id = ?`, [id], function (err) {
     if (err) return res.status(500).json({ error: 'Ошибка при удалении' });
+    
+    logAudit(id, req.user.email, 'УДАЛЕН', 'Проект отправлен в корзину');
     res.json({ success: true, message: 'Проект отправлен в корзину' });
   });
 });
@@ -143,8 +175,6 @@ router.delete('/:id', authenticateToken, requireDirector, (req, res) => {
 // Генерация одноразовой защищенной ссылки (живет 1 минуту)
 router.get('/generate-download/:filename', authenticateToken, (req, res) => {
   const { filename } = req.params;
-  
-  // Создаем токен, действительный 1 минуту, содержащий имя файла и email пользователя
   const downloadToken = jwt.sign(
     { filename, email: req.user.email }, 
     JWT_SECRET, 
@@ -156,25 +186,18 @@ router.get('/generate-download/:filename', authenticateToken, (req, res) => {
   });
 });
 
-// Физическая отдача файла по одноразовой ссылке (работает из новой вкладки браузера)
+// Физическая отдача файла по одноразовой ссылке
 router.get('/download/:filename', (req, res) => {
   const token = req.query.t;
   if (!token) return res.status(403).send('Отсутствует токен доступа. Доступ запрещен.');
 
   jwt.verify(token, JWT_SECRET, (err, decoded) => {
     if (err) return res.status(403).send('Ссылка устарела или недействительна. Вернитесь в реестр и нажмите на файл еще раз.');
-    
-    // Проверка, что токен был выдан именно для этого файла
-    if (decoded.filename !== req.params.filename) {
-      return res.status(403).send('Неверный файл.');
-    }
+    if (decoded.filename !== req.params.filename) return res.status(403).send('Неверный файл.');
 
     const filePath = path.join(__dirname, '..', 'uploads', req.params.filename);
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).send('Файл не найден на сервере (возможно, был удален).');
-    }
+    if (!fs.existsSync(filePath)) return res.status(404).send('Файл не найден на сервере (возможно, был удален).');
 
-    // Отдаем файл (браузер покажет PDF внутри вкладки)
     res.sendFile(filePath);
   });
 });

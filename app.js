@@ -407,6 +407,7 @@
         <td class="financial-cell currency ${dc}${canView ? '' : ' hidden'}">${formatCurrency(p.marginDiff)}</td>
         <td class="actions-cell${canEdit ? '' : ' hidden'}">
           <button class="btn-icon edit" data-action="edit" data-id="${p.id}" title="Редактировать">✏️</button>
+          ${isDir ? `<button class="btn-icon audit" data-action="audit" data-id="${p.id}" title="История изменений">🕒</button>` : ''}
           ${isDir ? `<button class="btn-icon delete" data-action="delete" data-id="${p.id}" title="Удалить">🗑️</button>` : ''}
         </td>
       </tr>`;
@@ -452,6 +453,7 @@
   function initProjectModal() {
     $('#btn-add-project').addEventListener('click', () => openProjectModal());
     $('#modal-close-project').addEventListener('click', closeProjectModal);
+    $('#modal-close-audit').addEventListener('click', () => $('#audit-modal').classList.add('hidden'));
     $('#modal-cancel-project').addEventListener('click', closeProjectModal);
     $('#modal-save-project').addEventListener('click', handleSaveProject);
     $('#field-revenue').addEventListener('input', autoCalcMargins);
@@ -481,8 +483,29 @@
           })
           .catch(e => showToast('Ошибка доступа: ' + e.message, 'error'))
           .finally(() => btn.style.opacity = '1');
+      } else if (btn.dataset.action === 'audit') {
+        openAuditModal(btn.dataset.id);
       }
     });
+  }
+
+  async function openAuditModal(id) {
+    try {
+      const logs = await apiRequest(`/projects/${id}/audit`);
+      const container = $('#audit-logs-container');
+      if (logs.length === 0) {
+        container.innerHTML = '<p style="text-align:center;color:#888;">История пуста</p>';
+      } else {
+        container.innerHTML = logs.map(l => `
+          <div style="border-left: 3px solid #3b82f6; padding-left: 10px; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid #333;">
+            <div style="font-size: 0.8rem; color: #888;">${new Date(l.timestamp).toLocaleString()} - <strong style="color:white;">${esc(l.userEmail)}</strong></div>
+            <div style="font-weight: bold; margin: 4px 0; color: #10b981;">${esc(l.action)}</div>
+            <div style="font-size: 0.9rem; color: #ccc;">${esc(l.details || '')}</div>
+          </div>
+        `).join('');
+      }
+      $('#audit-modal').classList.remove('hidden');
+    } catch(e) { showToast(e.message, 'error'); }
   }
 
   function openProjectModal(p = null) {

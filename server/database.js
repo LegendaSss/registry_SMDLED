@@ -55,7 +55,15 @@ function initDB() {
       createdBy TEXT
     )`);
 
-    // Миграции (добавление новых колонок, если их нет)
+    // Таблица аудита (история изменений)
+    db.run(`CREATE TABLE IF NOT EXISTS audit_logs (
+      id TEXT PRIMARY KEY,
+      projectId TEXT NOT NULL,
+      userEmail TEXT NOT NULL,
+      action TEXT NOT NULL,
+      details TEXT,
+      timestamp TEXT NOT NULL
+    )`);
     db.run("ALTER TABLE projects ADD COLUMN isDeleted BOOLEAN DEFAULT 0", (err) => {});
     db.run("ALTER TABLE users ADD COLUMN isVerified BOOLEAN DEFAULT 0", (err) => {});
     db.run("ALTER TABLE users ADD COLUMN verificationToken TEXT", (err) => {});
