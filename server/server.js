@@ -10,20 +10,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-const allowedOrigins = [
-  'https://smdled-registr.ru',
-  'https://www.smdled-registr.ru',
-  'http://localhost:5000',
-  'http://127.0.0.1:5000'
-];
-app.use(cors({
-  origin: function(origin, callback) {
-    // разрешаем запросы без origin (например, curl, Postman) и зарегистрированные домены
-    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-    callback(new Error('CORS: домен не разрешён'));
-  },
-  credentials: true
-}));
+app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
