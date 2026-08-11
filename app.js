@@ -690,12 +690,26 @@
     downloadFile('\uFEFF' + csv, `СМДЛЕД_Реестр_${todayStr()}.csv`, 'text/csv;charset=utf-8;');
   }
 
-  function exportExcel() {
-    const { headers, rows } = getExportData();
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-    XLSX.utils.book_append_sheet(wb, ws, 'Реестр');
-    XLSX.writeFile(wb, `СМДЛЕД_Реестр_${todayStr()}.xlsx`);
+  async function exportExcel() {
+    const search = encodeURIComponent($('#search-input').value.trim());
+    const payStatus = encodeURIComponent($('#filter-payment').value);
+    const projStatus = encodeURIComponent($('#filter-project').value);
+    const url = `/projects/export?search=${search}&paymentStatus=${payStatus}&projectStatus=${projStatus}&sortBy=${sortState.col || 'createdAt'}&sortOrder=${sortState.dir || 'desc'}`;
+    
+    try {
+      const response = await fetch('/api' + url, {
+        headers: { 'Authorization': 'Bearer ' + authToken }
+      });
+      if (!response.ok) throw new Error('Ошибка выгрузки');
+      const blob = await response.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `СМДЛЕД_Реестр_${todayStr()}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } catch(e) { showToast(e.message, 'error'); }
   }
 
   function exportPDF() {

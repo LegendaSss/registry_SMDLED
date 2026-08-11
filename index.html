@@ -41,6 +41,9 @@
             <label>Пароль</label>
             <input type="password" id="login-password" class="form-input" placeholder="Введите пароль" autocomplete="current-password">
           </div>
+          <div style="text-align:right; margin-top:-10px; margin-bottom:10px;">
+            <a href="#" id="forgot-password-link" style="color:#3b82f6; font-size:0.85rem; text-decoration:none;">Забыли пароль?</a>
+          </div>
           <button id="btn-login" class="btn btn-primary btn-full">Войти</button>
         </div>
 
@@ -83,6 +86,7 @@
         </div>
         <button class="btn btn-ghost btn-sm" id="btn-manage-users" title="Управление пользователями">👥 Пользователи</button>
         <button class="btn btn-ghost btn-sm" id="btn-generate-test" title="Генерировать тестовые данные" style="display:none">🧪 Тест</button>
+        <button class="btn btn-ghost btn-sm" id="btn-my-profile" title="Мой профиль">⚙️ Профиль</button>
         <button class="btn btn-ghost btn-sm" id="btn-logout" title="Выход">Выйти</button>
       </div>
     </header>
@@ -440,6 +444,49 @@
         <div id="audit-logs-container" style="display: flex; flex-direction: column; gap: 15px;">
           <!-- Логи будут вставляться сюда -->
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== PROFILE MODAL ==================== -->
+  <div id="profile-modal" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width: 400px;">
+      <div class="modal-header">
+        <h2>Мой профиль</h2>
+        <button class="modal-close" id="modal-close-profile">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="profile-form">
+          <div class="form-group">
+            <label>Имя</label>
+            <input type="text" id="profile-name" class="form-input">
+          </div>
+          <div class="form-group">
+            <label>Новый пароль (оставьте пустым, если не меняете)</label>
+            <input type="password" id="profile-password" class="form-input" placeholder="Минимум 6 символов">
+          </div>
+          <button type="submit" class="btn btn-primary btn-full">Сохранить</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== FORGOT PASSWORD MODAL ==================== -->
+  <div id="forgot-password-modal" class="modal-overlay hidden">
+    <div class="modal-card" style="max-width: 400px;">
+      <div class="modal-header">
+        <h2>Сброс пароля</h2>
+        <button class="modal-close" id="modal-close-forgot">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="forgot-password-form">
+          <p style="font-size: 0.9rem; margin-bottom: 15px; color: #ccc;">Введите email, на который был зарегистрирован ваш аккаунт. Если он существует, мы отправим ссылку для сброса.</p>
+          <div class="form-group">
+            <label>Ваш Email</label>
+            <input type="email" id="forgot-email" class="form-input" required>
+          </div>
+          <button type="submit" class="btn btn-primary btn-full">Отправить письмо</button>
+        </form>
       </div>
     </div>
   </div>

@@ -174,4 +174,77 @@ router.delete('/users/:id', authenticateToken, requireDirector, (req, res) => {
   });
 });
 
+// Изменение профиля (Имя и Пароль)
+router.put('/profile', authenticateToken, async (req, res) => {
+  const { name, newPassword } = req.body;
+  const user = req.user;
+
+  try {
+    if (name) {
+      db.run(`UPDATE users SET name = ? WHERE id = ?`, [name, user.id]);
+    }
+    if (newPassword) {
+      if (newPassword.length < 6) return res.status(400).json({ error: 'Пароль минимум 6 символов' });
+      const hash = await bcrypt.hash(newPassword, 10);
+      db.run(`UPDATE users SET passwordHash = ? WHERE id = ?`, [hash, user.id]);
+    }
+    res.json({ success: true, message: 'Профиль успешно обновлен' });
+  } catch (err) {
+    res.status(500).json({ error: 'Ошибка БД' });
+  }
+});
+
+// Восстановление пароля (Запрос)
+router.post('/forgot-password', (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Введите email' });
+
+  db.get(`SELECT * FROM users WHERE email = ?`, [email.toLowerCase().trim()], (err, user) => {
+    if (err || !user) return res.json({ message: 'Если email существует, на него отправлено письмо' });
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    db.run(`UPDATE users SET verificationToken = ? WHERE id = ?`, [resetToken, user.id], (err) => {
+      if (err) return res.status(500).json({ error: 'Ошибка БД' });
+
+      const resetLink = `https://smdled-registr.ru/reset-password.html?token=${resetToken}`;
+      const mailOptions = {
+        from: '"СМДЛЕД Реестр" <' + (process.env.SMTP_USER || 'info@smdled-registr.ru') + '>',
+        to: user.email,
+        subject: 'Восстановление пароля',
+        html: `
+          <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto; border: 1px solid #ddd; padding: 20px; border-radius: 8px;">
+            <h2 style="color: #3b82f6;">Восстановление пароля</h2>
+            <p>Вы запросили сброс пароля. Если это были не вы, просто проигнорируйте письмо.</p>
+            <p>Для создания нового пароля перейдите по ссылке:</p>
+            <a href="${resetLink}" style="display: inline-block; padding: 10px 20px; color: white; background: #3b82f6; text-decoration: none; border-radius: 5px;">Сбросить пароль</a>
+          </div>
+        `
+      };
+
+      transporter.sendMail(mailOptions, (error) => {
+        if (error) console.error('Email error:', error);
+      });
+
+      res.json({ message: 'Если email существует, на него отправлено письмо' });
+    });
+  });
+});
+
+// Сброс пароля (Установка нового)
+router.post('/reset-password', async (req, res) => {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword) return res.status(400).json({ error: 'Неверные данные' });
+  if (newPassword.length < 6) return res.status(400).json({ error: 'Пароль минимум 6 символов' });
+
+  db.get(`SELECT * FROM users WHERE verificationToken = ?`, [token], async (err, user) => {
+    if (err || !user) return res.status(400).json({ error: 'Ссылка устарела или недействительна' });
+
+    const hash = await bcrypt.hash(newPassword, 10);
+    db.run(`UPDATE users SET passwordHash = ?, verificationToken = NULL WHERE id = ?`, [hash, user.id], (err) => {
+      if (err) return res.status(500).json({ error: 'Ошибка БД' });
+      res.json({ message: 'Пароль успешно изменен' });
+    });
+  });
+});
+
 module.exports = router;

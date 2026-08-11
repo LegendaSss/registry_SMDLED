@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const ExcelJS = require('exceljs');
 
 const router = express.Router();
 
@@ -120,6 +121,70 @@ router.get('/', authenticateToken, (req, res) => {
 
       res.json({ data: rows, total });
     });
+  });
+});
+
+// Выгрузка в Excel
+router.get('/export', authenticateToken, (req, res) => {
+  const search = req.query.search || '';
+  const paymentStatus = req.query.paymentStatus || '';
+  const projectStatus = req.query.projectStatus || '';
+  const sortBy = req.query.sortBy || 'createdAt';
+  const sortOrder = req.query.sortOrder === 'asc' ? 'ASC' : 'DESC';
+
+  const allowedSortCols = ['mop', 'rp', 'name', 'paymentStatus', 'projectStatus', 'signDate', 'deadline', 'transferDate', 'clientContact', 'clientName', 'revenue', 'plannedMarginRub', 'plannedMarginPct', 'actualMarginRub', 'actualMarginPct', 'marginDiff', 'createdAt', 'closeDate'];
+  const actualSortBy = allowedSortCols.includes(sortBy) ? sortBy : 'createdAt';
+
+  let whereClause = 'WHERE isDeleted = 0';
+  const params = [];
+  if (search) {
+    whereClause += ` AND (name LIKE ? OR clientName LIKE ? OR mop LIKE ? OR rp LIKE ?)`;
+    const searchPattern = `%${search}%`;
+    params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+  }
+  if (paymentStatus) { whereClause += ` AND paymentStatus = ?`; params.push(paymentStatus); }
+  if (projectStatus) { whereClause += ` AND projectStatus = ?`; params.push(projectStatus); }
+
+  const dataQuery = `SELECT * FROM projects ${whereClause} ORDER BY ${actualSortBy} ${sortOrder}`;
+  
+  db.all(dataQuery, params, async (err, rows) => {
+    if (err) return res.status(500).json({ error: 'Ошибка БД при экспорте' });
+
+    const user = req.user;
+    const canView = user.canViewFinances || user.role === 'director';
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Проекты');
+
+    worksheet.columns = [
+      { header: 'МОП', key: 'mop', width: 20 },
+      { header: 'РП', key: 'rp', width: 20 },
+      { header: 'Наименование', key: 'name', width: 30 },
+      { header: 'Статус оплаты', key: 'paymentStatus', width: 20 },
+      { header: 'Статус проекта', key: 'projectStatus', width: 20 },
+      { header: 'Дата подписания', key: 'signDate', width: 15 },
+      { header: 'Дедлайн', key: 'deadline', width: 15 },
+      { header: 'ФИО Клиента', key: 'clientName', width: 30 },
+      ...(canView ? [
+        { header: 'Выручка', key: 'revenue', width: 15 },
+        { header: 'План маржа ₽', key: 'plannedMarginRub', width: 15 },
+        { header: 'Факт маржа ₽', key: 'actualMarginRub', width: 15 },
+        { header: 'Разница ₽', key: 'marginDiff', width: 15 }
+      ] : [])
+    ];
+
+    rows.forEach(r => {
+      if (!canView) {
+        r.revenue = ''; r.plannedMarginRub = ''; r.actualMarginRub = ''; r.marginDiff = '';
+      }
+      worksheet.addRow(r);
+    });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename=' + encodeURIComponent('Реестр_Проектов.xlsx'));
+    
+    await workbook.xlsx.write(res);
+    res.end();
   });
 });
 
