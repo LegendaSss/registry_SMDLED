@@ -132,8 +132,7 @@
   function renderLink(url) { return url ? `<a href="${esc(url)}" target="_blank" rel="noopener" class="link-icon" title="${esc(url)}">🔗</a>` : '—'; }
   function renderFileOrLink(fileName, link) {
     if (fileName) {
-      const url = `/uploads/${fileName}`;
-      return `<a href="${url}" target="_blank" class="file-badge" title="${esc(fileName)}">${getFileIcon(fileName)} Файл</a>`;
+      return `<button type="button" class="file-badge" data-action="download" data-file="${esc(fileName)}" title="${esc(fileName)}">${getFileIcon(fileName)} Файл</button>`;
     }
     return link ? renderLink(link) : '—';
   }
@@ -466,6 +465,16 @@
             await loadProjects();
           } catch(e) { showToast(e.message, 'error'); }
         });
+      } else if (btn.dataset.action === 'download') {
+        const fileName = btn.dataset.file;
+        if (!fileName) return;
+        btn.style.opacity = '0.5';
+        apiRequest(`/projects/generate-download/${encodeURIComponent(fileName)}`)
+          .then(data => {
+            window.open(data.url, '_blank');
+          })
+          .catch(e => showToast('Ошибка доступа: ' + e.message, 'error'))
+          .finally(() => btn.style.opacity = '1');
       }
     });
   }

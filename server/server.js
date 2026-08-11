@@ -15,7 +15,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Статические файлы (загруженные документы)
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+// Доступ к папке uploads теперь закрыт и осуществляется только через API
 
 // Маршруты API
 app.use('/api/auth', authRoutes);
