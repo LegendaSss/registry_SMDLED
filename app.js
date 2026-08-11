@@ -524,14 +524,40 @@
     if (!name) errors.push('Укажите наименование проекта.');
     
     const isValidUrl = (str) => {
-      const pattern = new RegExp('^(https?:\\/\\/)?'+ // protocol
-        '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|'+ // domain name
-        '((\\d{1,3}\\.){3}\\d{1,3}))'+ // OR ip (v4) address
-        '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*'+ // port and path
-        '(\\?[;&a-z\\d%_.~+=-]*)?'+ // query string
-        '(\\#[-a-z\\d_]*)?
+      try { new URL(str.startsWith('http') ? str : 'https://' + str); return true; } 
+      catch (_) { return false; }
+    };
+
+    const urlFields = [
+      { id: 'field-bitrix', label: 'Ссылка Битрикс 24' },
+      { id: 'field-contract-link', label: 'Ссылка на договор' },
+      { id: 'field-signed-contract-link', label: 'Ссылка на подписанный договор' },
+      { id: 'field-calc-link', label: 'Ссылка на расчет' },
+      { id: 'field-upd-link', label: 'Ссылка на подписанный УПД' }
+    ];
     
-    // Используем FormData для отправки файлов и текста вместе
+    urlFields.forEach(f => {
+      const el = document.getElementById(f.id);
+      if (el) {
+        const val = el.value.trim();
+        if (val && !isValidUrl(val)) {
+          errors.push(\`Поле "\${f.label}" содержит некорректную ссылку.\`);
+        }
+      }
+    });
+
+    if (errors.length > 0) {
+      if (errorDiv) {
+        errorDiv.innerHTML = '<strong>Пожалуйста, исправьте следующие ошибки:</strong><br>' + errors.join('<br>');
+        errorDiv.style.display = 'block';
+        $('#project-modal .modal-body').scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        showToast(errors.join('\\n'), 'error');
+      }
+      return;
+    }
+    
+    const id = $('#project-id').value;
     const formData = new FormData();
     formData.append('mop', $('#field-mop').value.trim());
     formData.append('rp', $('#field-rp').value.trim());
@@ -561,10 +587,10 @@
 
     try {
       if (id) {
-        await apiRequest(`/projects/${id}`, { method: 'PUT', body: formData });
+        await apiRequest(\`/projects/\${id}\`, { method: 'PUT', body: formData });
         showToast('Проект обновлен', 'success');
       } else {
-        await apiRequest(`/projects`, { method: 'POST', body: formData });
+        await apiRequest(\`/projects\`, { method: 'POST', body: formData });
         showToast('Проект добавлен', 'success');
       }
       closeProjectModal();
