@@ -305,8 +305,8 @@
     const canEdit = currentUser.canEdit || isDir;
     $$('.financial-cell').forEach(el => el.classList.toggle('hidden', !canView));
     $$('.financial-field').forEach(el => el.classList.toggle('hidden', !canView));
-    $('#btn-add-project').classList.toggle('hidden', !canEdit);
-    $('#btn-manage-users').style.display = isDir ? '' : 'none';
+    if ($('#btn-add-project')) $('#btn-add-project').classList.toggle('hidden', !canEdit);
+    if ($('#btn-manage-users')) $('#btn-manage-users').style.display = isDir ? '' : 'none';
     $$('.actions-cell').forEach(el => el.classList.toggle('hidden', !canEdit));
   }
 
@@ -926,8 +926,8 @@
   }
 
   async function init() {
-    initProfileAndForgotModals();
     initAuth();
+    initProfileAndForgotModals();
     initProjectModal();
     initInputMasks();
     initFileUploads();
