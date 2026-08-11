@@ -306,8 +306,7 @@
     $$('.financial-cell').forEach(el => el.classList.toggle('hidden', !canView));
     $$('.financial-field').forEach(el => el.classList.toggle('hidden', !canView));
     $('#btn-add-project').classList.toggle('hidden', !canEdit);
-    $('#btn-manage-users').classList.toggle('hidden', !isDir);
-    $('#btn-generate-test').style.display = isDir ? '' : 'none'; // Временная фича скрыта для сервера
+    $('#btn-manage-users').style.display = isDir ? '' : 'none';
     $$('.actions-cell').forEach(el => el.classList.toggle('hidden', !canEdit));
   }
 
