@@ -40,9 +40,9 @@ function deleteFileSafely(filename) {
   });
 }
 
-// Получить все проекты
+// Получить все активные проекты (isDeleted = 0)
 router.get('/', authenticateToken, (req, res) => {
-  db.all(`SELECT * FROM projects ORDER BY createdAt DESC`, [], (err, rows) => {
+  db.all(`SELECT * FROM projects WHERE isDeleted = 0 ORDER BY createdAt DESC`, [], (err, rows) => {
     if (err) return res.status(500).json({ error: 'Ошибка базы данных' });
 
     // Очистка финансовых данных для тех, у кого нет прав
@@ -83,8 +83,8 @@ router.post('/', authenticateToken, requireEditRights, upload.fields([{ name: 'c
   [
     id, p.mop, p.rp, p.name, p.bitrixLink, p.paymentStatus, p.projectStatus, p.signDate, p.deadline, p.transferDate,
     p.contractLink, contractFileName, p.signedContractLink, signedContractFileName, p.clientContact, p.clientName,
-    p.revenue || 0, p.plannedMarginRub || 0, p.plannedMarginPct || 0, p.calcLink, p.updLink, p.closeDate,
-    p.actualMarginRub || 0, p.actualMarginPct || 0, p.marginDiff || 0, new Date().toISOString(), req.user.email
+    parseFloat(p.revenue) || 0, parseFloat(p.plannedMarginRub) || 0, parseFloat(p.plannedMarginPct) || 0, p.calcLink, p.updLink, p.closeDate,
+    parseFloat(p.actualMarginRub) || 0, parseFloat(p.actualMarginPct) || 0, parseFloat(p.marginDiff) || 0, new Date().toISOString(), req.user.email
   ], function (err) {
     if (err) return res.status(500).json({ error: 'Ошибка при создании проекта' });
     res.status(201).json({ id, message: 'Проект успешно создан' });
@@ -121,8 +121,8 @@ router.put('/:id', authenticateToken, requireEditRights, upload.fields([{ name: 
     [
       p.mop, p.rp, p.name, p.bitrixLink, p.paymentStatus, p.projectStatus, p.signDate, p.deadline, p.transferDate,
       p.contractLink, contractFileName, p.signedContractLink, signedContractFileName, p.clientContact, p.clientName,
-      p.revenue || 0, p.plannedMarginRub || 0, p.plannedMarginPct || 0, p.calcLink, p.updLink, p.closeDate,
-      p.actualMarginRub || 0, p.actualMarginPct || 0, p.marginDiff || 0, id
+      parseFloat(p.revenue) || 0, parseFloat(p.plannedMarginRub) || 0, parseFloat(p.plannedMarginPct) || 0, p.calcLink, p.updLink, p.closeDate,
+      parseFloat(p.actualMarginRub) || 0, parseFloat(p.actualMarginPct) || 0, parseFloat(p.marginDiff) || 0, id
     ], function (err) {
       if (err) return res.status(500).json({ error: 'Ошибка при обновлении проекта' });
       res.json({ success: true, message: 'Проект обновлен' });
@@ -130,20 +130,13 @@ router.put('/:id', authenticateToken, requireEditRights, upload.fields([{ name: 
   });
 });
 
-// Удалить проект (Только директор)
+// Удалить проект (Мягкое удаление - Только директор)
 router.delete('/:id', authenticateToken, requireDirector, (req, res) => {
   const { id } = req.params;
   
-  db.get(`SELECT contractFileName, signedContractFileName FROM projects WHERE id = ?`, [id], (err, row) => {
-    if (row) {
-      deleteFileSafely(row.contractFileName);
-      deleteFileSafely(row.signedContractFileName);
-    }
-    
-    db.run(`DELETE FROM projects WHERE id = ?`, [id], function (err) {
-      if (err) return res.status(500).json({ error: 'Ошибка при удалении' });
-      res.json({ success: true });
-    });
+  db.run(`UPDATE projects SET isDeleted = 1 WHERE id = ?`, [id], function (err) {
+    if (err) return res.status(500).json({ error: 'Ошибка при удалении' });
+    res.json({ success: true, message: 'Проект отправлен в корзину' });
   });
 });
 

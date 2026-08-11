@@ -236,12 +236,18 @@
     
     try {
       const res = await apiRequest('/auth/register', { method: 'POST', body: { name, email, password } });
-      currentUser = res.user;
-      authToken = res.token;
-      saveSession(currentUser, authToken); 
-      resetSessionTimer();
-      showAppPage();
-      showToast('Регистрация успешна! Роль: Наблюдатель', 'success');
+      if (res.requireVerification) {
+        showToast(res.message, 'success');
+        $('#register-form').reset();
+        switchAuthTab('login');
+      } else {
+        currentUser = res.user;
+        authToken = res.token;
+        saveSession(currentUser, authToken); 
+        resetSessionTimer();
+        showAppPage();
+        showToast('Регистрация успешна!', 'success');
+      }
     } catch (e) {
       showToast(e.message, 'error');
     }

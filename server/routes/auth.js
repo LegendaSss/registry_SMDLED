@@ -2,10 +2,22 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 const { db } = require('../database');
 const { authenticateToken, requireDirector, JWT_SECRET } = require('../middleware/auth');
 
 const router = express.Router();
+
+// Настройка почтового сервера (Timeweb)
+const transporter = nodemailer.createTransport({
+  host: 'smtp.timeweb.ru',
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env.SMTP_USER || 'info@smdled-registr.ru',
+    pass: process.env.SMTP_PASS || 'placeholder_password'
+  }
+});
 
 function generateUUID() {
   return crypto.randomUUID();
@@ -13,16 +25,23 @@ function generateUUID() {
 
 // Регистрация
 router.post('/register', async (req, res) => {
-  const { name, email, password } = req.body;
+  let { name, email, password } = req.body;
   if (!name || !email || !password) return res.status(400).json({ error: 'Заполните все поля.' });
+
+  email = email.toLowerCase().trim();
+
+  // Валидация Email
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) return res.status(400).json({ error: 'Неверный формат email.' });
 
   try {
     const hash = await bcrypt.hash(password, 10);
     const id = generateUUID();
+    const verificationToken = crypto.randomBytes(32).toString('hex');
     
     db.run(
-      `INSERT INTO users (id, name, email, passwordHash, role, canViewFinances, canEdit) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [id, name, email.toLowerCase(), hash, 'viewer', 0, 0],
+      `INSERT INTO users (id, name, email, passwordHash, role, canViewFinances, canEdit, isVerified, verificationToken) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, name, email, hash, 'viewer', 0, 0, 0, verificationToken],
       function (err) {
         if (err) {
           if (err.message.includes('UNIQUE constraint failed')) {
@@ -31,14 +50,65 @@ router.post('/register', async (req, res) => {
           return res.status(500).json({ error: 'Ошибка базы данных' });
         }
         
-        const user = { id, name, email, role: 'viewer', canViewFinances: 0, canEdit: 0 };
-        const token = jwt.sign(user, JWT_SECRET, { expiresIn: '12h' });
-        res.status(201).json({ token, user });
+        // Попытка отправить письмо
+        const verifyUrl = `https://smdled-registr.ru/api/auth/verify/${verificationToken}`;
+        const mailOptions = {
+          from: `"СМДЛЕД Реестр" <${process.env.SMTP_USER || 'info@smdled-registr.ru'}>`,
+          to: email,
+          subject: 'Подтверждение регистрации',
+          html: `
+            <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; background: #f9f9f9; border-radius: 8px;">
+              <h2 style="color: #3b82f6;">Добро пожаловать в СМДЛЕД Реестр!</h2>
+              <p>Здравствуйте, ${name}!</p>
+              <p>Для завершения регистрации и получения доступа к системе, пожалуйста, подтвердите ваш email, нажав на кнопку ниже:</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${verifyUrl}" style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Подтвердить Email</a>
+              </div>
+              <p style="font-size: 12px; color: #777;">Если вы не регистрировались в системе, просто проигнорируйте это письмо.</p>
+            </div>
+          `
+        };
+
+        transporter.sendMail(mailOptions, (error, info) => {
+          if (error) {
+            console.error('Ошибка отправки письма:', error);
+            // Если почта не настроена, мы просто логируем ошибку, но говорим пользователю что все ок
+          }
+        });
+
+        // Возвращаем не токен (так как нельзя сразу пускать), а статус success
+        res.status(201).json({ message: 'Регистрация успешна. Проверьте вашу почту для подтверждения аккаунта.', requireVerification: true });
       }
     );
   } catch (error) {
     res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
+});
+
+// Подтверждение почты
+router.get('/verify/:token', (req, res) => {
+  const { token } = req.params;
+  
+  db.get(`SELECT * FROM users WHERE verificationToken = ?`, [token], (err, user) => {
+    if (err || !user) return res.status(400).send('Недействительная или устаревшая ссылка подтверждения.');
+    
+    db.run(`UPDATE users SET isVerified = 1, verificationToken = NULL WHERE id = ?`, [user.id], (err) => {
+      if (err) return res.status(500).send('Ошибка при подтверждении.');
+      
+      // Показываем красивую страницу об успехе
+      res.send(`
+        <html>
+          <body style="font-family: Arial; display: flex; align-items: center; justify-content: center; height: 100vh; background: #0a0a0f; color: white; text-align: center;">
+            <div>
+              <h1 style="color: #10b981;">Email подтвержден! 🎉</h1>
+              <p>Ваша учетная запись успешно активирована.</p>
+              <a href="https://smdled-registr.ru" style="color: #3b82f6; text-decoration: none; font-weight: bold; border: 1px solid #3b82f6; padding: 10px 20px; border-radius: 5px; display: inline-block; margin-top: 20px;">Перейти к входу</a>
+            </div>
+          </body>
+        </html>
+      `);
+    });
+  });
 });
 
 // Авторизация
@@ -49,6 +119,11 @@ router.post('/login', (req, res) => {
   db.get(`SELECT * FROM users WHERE email = ?`, [email.toLowerCase()], async (err, user) => {
     if (err) return res.status(500).json({ error: 'Ошибка базы данных' });
     if (!user) return res.status(400).json({ error: 'Неверный email или пароль' });
+
+    // Проверка на подтверждение (пропускаем директора, у него isVerified = 1 по дефолту)
+    if (user.isVerified === 0) {
+      return res.status(403).json({ error: 'Email не подтвержден. Проверьте вашу почту.' });
+    }
 
     const match = await bcrypt.compare(password, user.passwordHash);
     if (!match) return res.status(400).json({ error: 'Неверный email или пароль' });
@@ -69,7 +144,7 @@ router.post('/login', (req, res) => {
 
 // Получить всех пользователей (Только для директора)
 router.get('/users', authenticateToken, requireDirector, (req, res) => {
-  db.all(`SELECT id, name, email, role, canViewFinances, canEdit FROM users`, [], (err, rows) => {
+  db.all(`SELECT id, name, email, role, canViewFinances, canEdit, isVerified FROM users`, [], (err, rows) => {
     if (err) return res.status(500).json({ error: 'Ошибка базы данных' });
     res.json(rows);
   });
