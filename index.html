@@ -250,8 +250,8 @@
               <input type="url" id="field-bitrix" class="form-input" placeholder="https://smdled.bitrix24.ru/..." required>
             </div>
             <div class="form-group">
-              <label>Статус оплаты</label>
-              <select id="field-payment-status" class="form-select">
+              <label>Статус оплаты <span class="required">*</span></label>
+              <select id="field-payment-status" class="form-select" required>
                 <option value="">— Выберите —</option>
                 <option value="Полностью оплачен">Полностью оплачен</option>
                 <option value="Оплачен (предоплата)">Оплачен (предоплата)</option>
@@ -260,8 +260,8 @@
               </select>
             </div>
             <div class="form-group">
-              <label>Статус проекта</label>
-              <select id="field-project-status" class="form-select">
+              <label>Статус проекта <span class="required">*</span></label>
+              <select id="field-project-status" class="form-select" required>
                 <option value="">— Выберите —</option>
                 <option value="подписан/передан на реализацию">подписан/передан на реализацию</option>
                 <option value="реализован/УПД подписан">реализован/УПД подписан</option>
@@ -280,12 +280,12 @@
               <input type="date" id="field-sign-date" class="form-input" required>
             </div>
             <div class="form-group">
-              <label>Срок исполнения договора</label>
-              <input type="date" id="field-deadline" class="form-input">
+              <label>Срок исполнения договора <span class="required">*</span></label>
+              <input type="date" id="field-deadline" class="form-input" required>
             </div>
             <div class="form-group">
-              <label>Дата передачи проекта</label>
-              <input type="date" id="field-transfer-date" class="form-input">
+              <label>Дата передачи проекта <span class="required">*</span></label>
+              <input type="date" id="field-transfer-date" class="form-input" required>
             </div>
 
             <!-- Documents with file uploads -->

@@ -556,14 +556,34 @@
     const bitrix = $('#field-bitrix').value.trim();
     if (!bitrix) errors.push('Укажите "Ссылку Битрикс 24".');
     
+    const paymentStatus = $('#field-payment-status').value;
+    if (!paymentStatus) errors.push('Выберите "Статус оплаты".');
+    
+    const projectStatus = $('#field-project-status').value;
+    if (!projectStatus) errors.push('Выберите "Статус проекта".');
+
     const signDate = $('#field-sign-date').value;
     if (!signDate) errors.push('Укажите "Дату подписания договора".');
     
+    const deadlineDate = $('#field-deadline').value;
+    if (!deadlineDate) errors.push('Укажите "Срок исполнения договора".');
+    
+    const transferDate = $('#field-transfer-date').value;
+    if (!transferDate) errors.push('Укажите "Дату передачи проекта".');
+    
     const clientContact = $('#field-client-contact').value.trim();
-    if (!clientContact) errors.push('Укажите "Контакт клиента".');
+    if (!clientContact) {
+      errors.push('Укажите "Контакт клиента".');
+    } else if (!/^[\d\s\+\-\(\)]+$/.test(clientContact)) {
+      errors.push('Поле "Контакт клиента" должно содержать только цифры (допускаются +, -, пробелы и скобки).');
+    }
     
     const clientName = $('#field-client-name').value.trim();
-    if (!clientName) errors.push('Укажите "ФИО клиента".');
+    if (!clientName) {
+      errors.push('Укажите "ФИО клиента".');
+    } else if (/[0-9]/.test(clientName)) {
+      errors.push('Поле "ФИО клиента" не должно содержать цифры, только буквы.');
+    }
     
     const isValidUrl = (str) => {
       try { new URL(str.startsWith('http') ? str : 'https://' + str); return true; } 
