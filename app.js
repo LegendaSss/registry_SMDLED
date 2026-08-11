@@ -426,7 +426,7 @@
   }
 
   function updateStats() {
-    $('#stat-total').textContent = projects.length;
+    $('#stat-total').textContent = totalProjectsCount || projects.length;
     $('#stat-revenue').textContent = formatCurrency(projects.reduce((s, p) => s + (parseFloat(p.revenue) || 0), 0));
     const m = projects.filter(p => p.plannedMarginPct > 0);
     $('#stat-avg-margin').textContent = formatPercent(m.length ? m.reduce((s, p) => s + (parseFloat(p.plannedMarginPct) || 0), 0) / m.length : 0);
@@ -442,7 +442,7 @@
       const input = document.getElementById(`${fk}-file-input`);
       const area = document.getElementById(`${fk}-upload-area`);
       const preview = document.getElementById(`${fk}-file-preview`);
-      
+      if (!input || !area || !preview) return;
       area.addEventListener('dragover', e => { e.preventDefault(); area.classList.add('dragover'); });
       area.addEventListener('dragleave', () => area.classList.remove('dragover'));
       area.addEventListener('drop', e => { e.preventDefault(); area.classList.remove('dragover'); if (e.dataTransfer.files.length) handleFileSelect(e.dataTransfer.files[0], preview, fk); });
@@ -674,8 +674,11 @@
   // ════════════════════════════════════════════════════════════════
 
   function initUsersModal() {
-    $('#btn-manage-users').addEventListener('click', async () => { await loadUsers(); renderUsersTable(); $('#users-modal').classList.remove('hidden'); });
-    $('#modal-close-users').addEventListener('click', () => $('#users-modal').classList.add('hidden'));
+    const btnUsers = $('#btn-manage-users');
+    const modalUsers = $('#users-modal');
+    const closeUsers = $('#modal-close-users');
+    if (btnUsers) btnUsers.addEventListener('click', async () => { await loadUsers(); renderUsersTable(); modalUsers.classList.remove('hidden'); });
+    if (closeUsers) closeUsers.addEventListener('click', () => modalUsers.classList.add('hidden'));
   }
 
   function renderUsersTable() {
@@ -746,7 +749,7 @@
   function showConfirm(msg, cb) { $('#confirm-message').textContent = msg; confirmCb = cb; $('#confirm-modal').classList.remove('hidden'); }
 
   function initFilters() {
-    $('#search-input').addEventListener('input', () => { clearTimeout(searchDebounceTimer); searchDebounceTimer = setTimeout(() => { pagination.page = 1; renderProjects(); }, 300); });
+    $('#search-input').addEventListener('input', () => { clearTimeout(searchDebounceTimer); searchDebounceTimer = setTimeout(() => { pagination.page = 1; loadProjects(); }, 400); });
     $('#filter-payment').addEventListener('change', () => { pagination.page = 1; loadProjects(); });
     $('#filter-project').addEventListener('change', () => { pagination.page = 1; loadProjects(); });
   }
@@ -758,8 +761,8 @@
       const col = th.dataset.col;
       sortState = sortState.col === col ? { col, dir: sortState.dir === 'asc' ? 'desc' : 'asc' } : { col, dir: 'asc' };
       $$('#projects-table thead th').forEach(h => { h.classList.remove('sorted'); const ic = h.querySelector('.sort-icon'); if (ic) ic.textContent = '⇅'; });
-      th.classList.add('sorted'); th.querySelector('.sort-icon').textContent = sortState.dir === 'asc' ? '▲' : '▼';
-      pagination.page = 1; renderProjects();
+      th.classList.add('sorted'); const si = th.querySelector('.sort-icon'); if (si) si.textContent = sortState.dir === 'asc' ? '▲' : '▼';
+      pagination.page = 1; loadProjects();
     });
   }
 
