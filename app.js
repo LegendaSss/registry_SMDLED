@@ -96,13 +96,16 @@
       searchParams.append('page', pagination.page);
       searchParams.append('limit', pagination.perPage);
       
-      const searchVal = $('#search-input').value.trim();
+      const searchEl = $('#search-input');
+      const searchVal = searchEl ? searchEl.value.trim() : '';
       if (searchVal) searchParams.append('search', searchVal);
       
-      const payVal = $('#filter-payment').value;
+      const payEl = $('#filter-payment');
+      const payVal = payEl ? payEl.value : '';
       if (payVal) searchParams.append('paymentStatus', payVal);
       
-      const projVal = $('#filter-project').value;
+      const projEl = $('#filter-project');
+      const projVal = projEl ? projEl.value : '';
       if (projVal) searchParams.append('projectStatus', projVal);
       
       if (sortState.col) {
@@ -216,6 +219,16 @@
   // ════════════════════════════════════════════════════════════════
   //  АВТОРИЗАЦИЯ
   // ════════════════════════════════════════════════════════════════
+
+  function switchAuthTab(tab) {
+    $$('.auth-tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.tab === tab);
+    });
+    const loginForm = $('#login-form');
+    const registerForm = $('#register-form');
+    if (loginForm) loginForm.classList.toggle('hidden', tab !== 'login');
+    if (registerForm) registerForm.classList.toggle('hidden', tab !== 'register');
+  }
 
   function initAuth() {
     $$('.auth-tab').forEach(tab => {
@@ -779,7 +792,7 @@
   function getExportData() {
     const isDir = currentUser && currentUser.role === 'director';
     const canView = currentUser && (currentUser.canViewFinances || isDir);
-    const f = getFilteredProjects();
+    const f = projects; // данные уже загружены с сервера с фильтрацией
     const h = ['№', 'МОП/РОП', 'РП', 'Наименование', 'Битрикс', 'Статус оплаты', 'Статус проекта', 'Дата подписания', 'Срок исполнения', 'Дата передачи', 'Контакт', 'ФИО'];
     if (canView) h.push('Выручка ₽', 'План.маржа ₽', 'План.маржа %');
     if (canView) h.push('Факт.маржа ₽', 'Факт.маржа %', 'Разница ₽');
@@ -877,8 +890,9 @@
         try {
           await apiRequest('/auth/profile', { method: 'PUT', body: { name, newPassword } });
           showToast('Профиль успешно обновлен', 'success');
-          currentUser.name = name; 
-          saveSession(currentUser, authToken); 
+          currentUser.name = name;
+          saveSession(currentUser, authToken);
+          updateUserDisplay();
           modalProfile.classList.add('hidden');
         } catch (err) {
           showToast(err.message, 'error');

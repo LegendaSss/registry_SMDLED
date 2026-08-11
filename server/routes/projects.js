@@ -50,14 +50,8 @@ function logAudit(projectId, userEmail, action, details) {
   );
 }
 
-// Получить историю проекта (Только директор)
-router.get('/:id/audit', authenticateToken, requireDirector, (req, res) => {
-  const { id } = req.params;
-  db.all(`SELECT * FROM audit_logs WHERE projectId = ? ORDER BY timestamp DESC`, [id], (err, rows) => {
-    if (err) return res.status(500).json({ error: 'Ошибка БД' });
-    res.json(rows);
-  });
-});
+// ВАЖНО: маршрут /:id/audit объявлен НИЖЕ статических /export, /generate-download, /download
+// чтобы Express не спутал /export с id="export"
 
 // Получить все активные проекты (Серверная пагинация и Поиск)
 router.get('/', authenticateToken, (req, res) => {
@@ -107,7 +101,7 @@ router.get('/', authenticateToken, (req, res) => {
       const canView = user.canViewFinances || user.role === 'director';
       
       if (!canView) {
-        rows = rows.map(p => ({
+        const filtered = rows.map(p => ({
           ...p,
           revenue: null,
           plannedMarginRub: null,
@@ -117,6 +111,7 @@ router.get('/', authenticateToken, (req, res) => {
           actualMarginPct: null,
           marginDiff: null
         }));
+        return res.json({ data: filtered, total });
       }
 
       res.json({ data: rows, total });
@@ -124,7 +119,7 @@ router.get('/', authenticateToken, (req, res) => {
   });
 });
 
-// Выгрузка в Excel
+// Выгрузка в Excel — СТАТИЧЕСКИЕ маршруты ДО динамических /:id
 router.get('/export', authenticateToken, (req, res) => {
   const search = req.query.search || '';
   const paymentStatus = req.query.paymentStatus || '';
@@ -277,7 +272,7 @@ router.delete('/:id', authenticateToken, requireDirector, (req, res) => {
   });
 });
 
-// Генерация одноразовой защищенной ссылки (живет 1 минуту)
+// Генерация одноразовой защищенной ссылки (живет 1 минуту) — СТАТИЧЕСКИЙ маршрут
 router.get('/generate-download/:filename', authenticateToken, (req, res) => {
   const { filename } = req.params;
   const downloadToken = jwt.sign(
@@ -291,7 +286,7 @@ router.get('/generate-download/:filename', authenticateToken, (req, res) => {
   });
 });
 
-// Физическая отдача файла по одноразовой ссылке
+// Физическая отдача файла по одноразовой ссылке — СТАТИЧЕСКИЙ маршрут
 router.get('/download/:filename', (req, res) => {
   const token = req.query.t;
   if (!token) return res.status(403).send('Отсутствует токен доступа. Доступ запрещен.');
@@ -304,6 +299,15 @@ router.get('/download/:filename', (req, res) => {
     if (!fs.existsSync(filePath)) return res.status(404).send('Файл не найден на сервере (возможно, был удален).');
 
     res.sendFile(filePath);
+  });
+});
+
+// Получить историю проекта (Только директор) — ПОСЛЕ статических маршрутов
+router.get('/:id/audit', authenticateToken, requireDirector, (req, res) => {
+  const { id } = req.params;
+  db.all(`SELECT * FROM audit_logs WHERE projectId = ? ORDER BY timestamp DESC`, [id], (err, rows) => {
+    if (err) return res.status(500).json({ error: 'Ошибка БД' });
+    res.json(rows);
   });
 });
 
