@@ -565,11 +565,9 @@
     const signDate = $('#field-sign-date').value;
     if (!signDate) errors.push('Укажите "Дату подписания договора".');
     
+    // Срок исполнения и передачи могут быть пустыми при создании проекта
     const deadlineDate = $('#field-deadline').value;
-    if (!deadlineDate) errors.push('Укажите "Срок исполнения договора".');
-    
     const transferDate = $('#field-transfer-date').value;
-    if (!transferDate) errors.push('Укажите "Дату передачи проекта".');
     
     const clientContact = $('#field-client-contact').value.trim();
     if (!clientContact) {
@@ -586,8 +584,9 @@
     }
     
     const isValidUrl = (str) => {
-      try { new URL(str.startsWith('http') ? str : 'https://' + str); return true; } 
-      catch (_) { return false; }
+      // Строгая проверка на URL (домен обязателен, никаких пробелов)
+      const pattern = /^(https?:\/\/)?([\w\-]+\.)+[\w\-]{2,}(\/.*)?$/i;
+      return pattern.test(str.trim());
     };
 
     const urlFields = [
