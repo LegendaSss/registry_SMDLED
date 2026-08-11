@@ -549,8 +549,21 @@
     }
     
     let errors = [];
+    
     const name = $('#field-name').value.trim();
-    if (!name) errors.push('Укажите наименование проекта.');
+    if (!name) errors.push('Укажите "Наименование".');
+    
+    const bitrix = $('#field-bitrix').value.trim();
+    if (!bitrix) errors.push('Укажите "Ссылку Битрикс 24".');
+    
+    const signDate = $('#field-sign-date').value;
+    if (!signDate) errors.push('Укажите "Дату подписания договора".');
+    
+    const clientContact = $('#field-client-contact').value.trim();
+    if (!clientContact) errors.push('Укажите "Контакт клиента".');
+    
+    const clientName = $('#field-client-name').value.trim();
+    if (!clientName) errors.push('Укажите "ФИО клиента".');
     
     const isValidUrl = (str) => {
       try { new URL(str.startsWith('http') ? str : 'https://' + str); return true; } 
