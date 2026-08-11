@@ -17,6 +17,7 @@
   let authToken = null;
   let users = [];
   let projects = [];
+  let totalProjectsCount = 0;
   let sortState = { col: null, dir: 'asc' };
   let pagination = { page: 1, perPage: 25 };
   let searchDebounceTimer = null;
@@ -91,10 +92,39 @@
 
   async function loadProjects() {
     try { 
-      projects = await apiRequest('/projects'); 
+      const searchParams = new URLSearchParams();
+      searchParams.append('page', pagination.page);
+      searchParams.append('limit', pagination.perPage);
+      
+      const searchVal = $('#search-input').value.trim();
+      if (searchVal) searchParams.append('search', searchVal);
+      
+      const payVal = $('#filter-payment').value;
+      if (payVal) searchParams.append('paymentStatus', payVal);
+      
+      const projVal = $('#filter-project').value;
+      if (projVal) searchParams.append('projectStatus', projVal);
+      
+      if (sortState.col) {
+        searchParams.append('sortBy', sortState.col);
+        searchParams.append('sortOrder', sortState.dir);
+      }
+      
+      const res = await apiRequest(`/projects?${searchParams.toString()}`);
+      if (res && res.data) {
+        projects = res.data;
+        totalProjectsCount = res.total || 0;
+      } else {
+        projects = Array.isArray(res) ? res : [];
+        totalProjectsCount = projects.length;
+      }
+      
       renderProjects();
       updateStats();
-    } catch (e) { showToast('Не удалось загрузить проекты', 'error'); }
+    } catch (e) { 
+      console.error(e);
+      showToast('Не удалось загрузить проекты', 'error'); 
+    }
   }
 
   // ════════════════════════════════════════════════════════════════
