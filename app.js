@@ -267,7 +267,7 @@
     try {
       const res = await apiRequest('/auth/register', { method: 'POST', body: { name, email, password } });
       if (res.requireVerification) {
-        showToast(res.message, 'success');
+        alert("Регистрация успешно пройдена!\n\nНа указанный email отправлено письмо со ссылкой для подтверждения. Пожалуйста, проверьте папку «Входящие» (и папку «Спам», если письма долго нет).");
         $('#register-form').reset();
         switchAuthTab('login');
       } else {
@@ -847,7 +847,87 @@
     }
   }
 
+  function initProfileAndForgotModals() {
+    const btnProfile = $('#btn-my-profile');
+    const modalProfile = $('#profile-modal');
+    const closeProfile = $('#modal-close-profile');
+    const formProfile = $('#profile-form');
+    
+    if (btnProfile) {
+      btnProfile.addEventListener('click', () => {
+        $('#profile-email').value = currentUser.email;
+        $('#profile-name').value = currentUser.name;
+        $('#profile-password').value = '';
+        modalProfile.classList.remove('hidden');
+      });
+    }
+    if (closeProfile) {
+      closeProfile.addEventListener('click', () => modalProfile.classList.add('hidden'));
+    }
+    if (formProfile) {
+      formProfile.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = $('#profile-name').value.trim();
+        const newPassword = $('#profile-password').value;
+        if (!name) return showToast('Имя обязательно', 'error');
+        if (newPassword && newPassword.length < 6) return showToast('Пароль минимум 6 символов', 'error');
+        
+        try {
+          await apiRequest('/auth/profile', { method: 'PUT', body: { name, newPassword } });
+          showToast('Профиль успешно обновлен', 'success');
+          currentUser.name = name; 
+          saveSession(currentUser, authToken); 
+          modalProfile.classList.add('hidden');
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
+      });
+    }
+
+    const linkForgot = $('#forgot-password-link');
+    const modalForgot = $('#forgot-password-modal');
+    const closeForgot = $('#modal-close-forgot');
+    const formForgot = $('#forgot-password-form');
+    const btnBackToLogin = $('#btn-back-to-login');
+
+    if (linkForgot) {
+      linkForgot.addEventListener('click', (e) => {
+        e.preventDefault();
+        $('#auth-page').classList.add('hidden');
+        modalForgot.classList.remove('hidden');
+      });
+    }
+    if (closeForgot) {
+      closeForgot.addEventListener('click', () => {
+        modalForgot.classList.add('hidden');
+        $('#auth-page').classList.remove('hidden');
+      });
+    }
+    if (btnBackToLogin) {
+      btnBackToLogin.addEventListener('click', () => {
+        modalForgot.classList.add('hidden');
+        $('#auth-page').classList.remove('hidden');
+      });
+    }
+    if (formForgot) {
+      formForgot.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = $('#forgot-email').value.trim().toLowerCase();
+        if (!email) return;
+        try {
+          const res = await apiRequest('/auth/forgot-password', { method: 'POST', body: { email } });
+          alert('Если аккаунт с таким email существует, мы отправили на него письмо со ссылкой для восстановления.');
+          modalForgot.classList.add('hidden');
+          $('#auth-page').classList.remove('hidden');
+        } catch (err) {
+          showToast(err.message, 'error');
+        }
+      });
+    }
+  }
+
   async function init() {
+    initProfileAndForgotModals();
     initAuth();
     initProjectModal();
     initInputMasks();

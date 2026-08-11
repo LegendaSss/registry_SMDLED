@@ -85,7 +85,6 @@
           <span class="role-badge director" id="user-role-badge">Директор</span>
         </div>
         <button class="btn btn-ghost btn-sm" id="btn-manage-users" title="Управление пользователями">👥 Пользователи</button>
-        <button class="btn btn-ghost btn-sm" id="btn-generate-test" title="Генерировать тестовые данные" style="display:none">🧪 Тест</button>
         <button class="btn btn-ghost btn-sm" id="btn-my-profile" title="Мой профиль">⚙️ Профиль</button>
         <button class="btn btn-ghost btn-sm" id="btn-logout" title="Выход">Выйти</button>
       </div>
@@ -459,14 +458,18 @@
       <div class="modal-body">
         <form id="profile-form">
           <div class="form-group">
+            <label>Ваш Email (логин)</label>
+            <input type="text" id="profile-email" class="form-input" disabled style="background: rgba(255,255,255,0.05); color: #888; cursor: not-allowed;">
+          </div>
+          <div class="form-group">
             <label>Имя</label>
-            <input type="text" id="profile-name" class="form-input">
+            <input type="text" id="profile-name" class="form-input" required>
           </div>
           <div class="form-group">
             <label>Новый пароль (оставьте пустым, если не меняете)</label>
             <input type="password" id="profile-password" class="form-input" placeholder="Минимум 6 символов">
           </div>
-          <button type="submit" class="btn btn-primary btn-full">Сохранить</button>
+          <button type="submit" class="btn btn-primary btn-full">Сохранить изменения</button>
         </form>
       </div>
     </div>
@@ -481,12 +484,13 @@
       </div>
       <div class="modal-body">
         <form id="forgot-password-form">
-          <p style="font-size: 0.9rem; margin-bottom: 15px; color: #ccc;">Введите email, на который был зарегистрирован ваш аккаунт. Если он существует, мы отправим ссылку для сброса.</p>
+          <p style="font-size: 0.9rem; margin-bottom: 20px; color: #a0aec0; line-height: 1.5;">Введите email, на который был зарегистрирован ваш аккаунт. Если он существует в системе, мы отправим ссылку для создания нового пароля.</p>
           <div class="form-group">
             <label>Ваш Email</label>
-            <input type="email" id="forgot-email" class="form-input" required>
+            <input type="email" id="forgot-email" class="form-input" placeholder="email@smdled.ru" required>
           </div>
-          <button type="submit" class="btn btn-primary btn-full">Отправить письмо</button>
+          <button type="submit" class="btn btn-primary btn-full" style="margin-bottom: 10px;">Отправить письмо со ссылкой</button>
+          <button type="button" class="btn btn-ghost btn-full" id="btn-back-to-login">Вернуться ко входу</button>
         </form>
       </div>
     </div>
