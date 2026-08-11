@@ -8,13 +8,13 @@ const { authenticateToken, requireDirector, JWT_SECRET } = require('../middlewar
 
 const router = express.Router();
 
-// Настройка почтового сервера (Timeweb)
+// Настройка почтового сервера (Mail.ru)
 const transporter = nodemailer.createTransport({
-  host: 'smtp.timeweb.ru',
+  host: 'smtp.mail.ru',
   port: 465,
   secure: true,
   auth: {
-    user: process.env.SMTP_USER || 'info@smdled-registr.ru',
+    user: process.env.SMTP_USER || 'smdled-registr@mail.ru',
     pass: process.env.SMTP_PASS || 'placeholder_password'
   }
 });
@@ -53,7 +53,7 @@ router.post('/register', async (req, res) => {
         // Попытка отправить письмо
         const verifyUrl = `https://smdled-registr.ru/api/auth/verify/${verificationToken}`;
         const mailOptions = {
-          from: `"СМДЛЕД Реестр" <${process.env.SMTP_USER || 'info@smdled-registr.ru'}>`,
+          from: `"СМДЛЕД Реестр" <${process.env.SMTP_USER || 'smdled-registr@mail.ru'}>`,
           to: email,
           subject: 'Подтверждение регистрации',
           html: `
@@ -208,7 +208,7 @@ router.post('/forgot-password', (req, res) => {
 
       const resetLink = `https://smdled-registr.ru/reset-password.html?token=${resetToken}`;
       const mailOptions = {
-        from: '"СМДЛЕД Реестр" <' + (process.env.SMTP_USER || 'info@smdled-registr.ru') + '>',
+        from: '"СМДЛЕД Реестр" <' + (process.env.SMTP_USER || 'smdled-registr@mail.ru') + '>',
         to: user.email,
         subject: 'Восстановление пароля',
         html: `

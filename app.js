@@ -828,9 +828,29 @@
     doc.save(`СМДЛЕД_Реестр_${todayStr()}.pdf`);
   }
 
+  function initInputMasks() {
+    const nameFields = ['field-mop', 'field-rp', 'field-client-name'];
+    nameFields.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener('input', function() {
+          this.value = this.value.replace(/[0-9]/g, '');
+        });
+      }
+    });
+
+    const contactEl = document.getElementById('field-client-contact');
+    if (contactEl) {
+      contactEl.addEventListener('input', function() {
+        this.value = this.value.replace(/[^\d\s\+\-\(\)]/g, '');
+      });
+    }
+  }
+
   async function init() {
     initAuth();
     initProjectModal();
+    initInputMasks();
     initFileUploads();
     initConfirmModal();
     initFilters();
