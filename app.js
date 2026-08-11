@@ -299,7 +299,7 @@
     $('#per-page-select').addEventListener('change', e => {
       pagination.perPage = parseInt(e.target.value);
       pagination.page = 1;
-      renderProjects();
+      loadProjects();
     });
   }
 
@@ -331,7 +331,7 @@
     controls.querySelectorAll('.page-btn[data-page]').forEach(btn => {
       btn.addEventListener('click', () => {
         const p = parseInt(btn.dataset.page);
-        if (p >= 1 && p <= totalPages && p !== pagination.page) { pagination.page = p; renderProjects(); }
+        if (p >= 1 && p <= totalPages && p !== pagination.page) { pagination.page = p; loadProjects(); }
       });
     });
   }
@@ -347,30 +347,11 @@
     return pages;
   }
 
-  function getFilteredProjects() {
-    let f = [...projects];
-    const q = ($('#search-input').value || '').trim().toLowerCase();
-    if (q) f = f.filter(p => [p.mop, p.rp, p.name, p.clientContact, p.clientName, p.paymentStatus, p.projectStatus].join(' ').toLowerCase().includes(q));
-    const pf = $('#filter-payment').value; if (pf) f = f.filter(p => p.paymentStatus === pf);
-    const sf = $('#filter-project').value; if (sf) f = f.filter(p => p.projectStatus === sf);
-    
-    if (sortState.col) {
-      f.sort((a, b) => {
-        let va = a[sortState.col], vb = b[sortState.col];
-        const numCols = ['revenue', 'plannedMarginRub', 'plannedMarginPct', 'actualMarginRub', 'actualMarginPct', 'marginDiff'];
-        if (numCols.includes(sortState.col)) { return sortState.dir === 'asc' ? (parseFloat(va) || 0) - (parseFloat(vb) || 0) : (parseFloat(vb) || 0) - (parseFloat(va) || 0); }
-        return sortState.dir === 'asc' ? (va || '').toString().localeCompare((vb || '').toString(), 'ru') : (vb || '').toString().localeCompare((va || '').toString(), 'ru');
-      });
-    }
-    return f;
-  }
-
   function renderProjects() {
     const tbody = $('#projects-tbody');
-    const filtered = getFilteredProjects();
-    const totalItems = filtered.length;
+    const pageItems = projects;
+    const totalItems = totalProjectsCount;
     const startIdx = (pagination.page - 1) * pagination.perPage;
-    const pageItems = filtered.slice(startIdx, startIdx + pagination.perPage);
 
     renderPagination(totalItems);
 
@@ -661,8 +642,8 @@
 
   function initFilters() {
     $('#search-input').addEventListener('input', () => { clearTimeout(searchDebounceTimer); searchDebounceTimer = setTimeout(() => { pagination.page = 1; renderProjects(); }, 300); });
-    $('#filter-payment').addEventListener('change', () => { pagination.page = 1; renderProjects(); });
-    $('#filter-project').addEventListener('change', () => { pagination.page = 1; renderProjects(); });
+    $('#filter-payment').addEventListener('change', () => { pagination.page = 1; loadProjects(); });
+    $('#filter-project').addEventListener('change', () => { pagination.page = 1; loadProjects(); });
   }
 
   function initSorting() {

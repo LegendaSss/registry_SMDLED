@@ -58,28 +58,68 @@ router.get('/:id/audit', authenticateToken, requireDirector, (req, res) => {
   });
 });
 
-// Получить все активные проекты (isDeleted = 0)
+// Получить все активные проекты (Серверная пагинация и Поиск)
 router.get('/', authenticateToken, (req, res) => {
-  db.all(`SELECT * FROM projects WHERE isDeleted = 0 ORDER BY createdAt DESC`, [], (err, rows) => {
-    if (err) return res.status(500).json({ error: 'Ошибка базы данных' });
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 25;
+  const search = req.query.search || '';
+  const sortBy = req.query.sortBy || 'createdAt';
+  const sortOrder = req.query.sortOrder === 'asc' ? 'ASC' : 'DESC';
+  const paymentStatus = req.query.paymentStatus || '';
+  const projectStatus = req.query.projectStatus || '';
+  const offset = (page - 1) * limit;
 
-    const user = req.user;
-    const canView = user.canViewFinances || user.role === 'director';
+  const allowedSortCols = ['mop', 'rp', 'name', 'paymentStatus', 'projectStatus', 'signDate', 'deadline', 'transferDate', 'clientContact', 'clientName', 'revenue', 'plannedMarginRub', 'plannedMarginPct', 'actualMarginRub', 'actualMarginPct', 'marginDiff', 'createdAt', 'closeDate'];
+  const actualSortBy = allowedSortCols.includes(sortBy) ? sortBy : 'createdAt';
+
+  let whereClause = 'WHERE isDeleted = 0';
+  const params = [];
+
+  if (search) {
+    whereClause += ` AND (name LIKE ? OR clientName LIKE ? OR mop LIKE ? OR rp LIKE ?)`;
+    const searchPattern = `%${search}%`;
+    params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+  }
+
+  if (paymentStatus) {
+    whereClause += ` AND paymentStatus = ?`;
+    params.push(paymentStatus);
+  }
+
+  if (projectStatus) {
+    whereClause += ` AND projectStatus = ?`;
+    params.push(projectStatus);
+  }
+
+  const countQuery = `SELECT COUNT(*) as count FROM projects ${whereClause}`;
+  const dataQuery = `SELECT * FROM projects ${whereClause} ORDER BY ${actualSortBy} ${sortOrder} LIMIT ? OFFSET ?`;
+  
+  db.get(countQuery, params, (err, countRow) => {
+    if (err) return res.status(500).json({ error: 'Ошибка подсчета' });
     
-    if (!canView) {
-      rows = rows.map(p => ({
-        ...p,
-        revenue: null,
-        plannedMarginRub: null,
-        plannedMarginPct: null,
-        calcLink: null,
-        actualMarginRub: null,
-        actualMarginPct: null,
-        marginDiff: null
-      }));
-    }
+    const total = countRow.count;
+    
+    db.all(dataQuery, [...params, limit, offset], (err, rows) => {
+      if (err) return res.status(500).json({ error: 'Ошибка получения данных' });
 
-    res.json(rows);
+      const user = req.user;
+      const canView = user.canViewFinances || user.role === 'director';
+      
+      if (!canView) {
+        rows = rows.map(p => ({
+          ...p,
+          revenue: null,
+          plannedMarginRub: null,
+          plannedMarginPct: null,
+          calcLink: null,
+          actualMarginRub: null,
+          actualMarginPct: null,
+          marginDiff: null
+        }));
+      }
+
+      res.json({ data: rows, total });
+    });
   });
 });
 
